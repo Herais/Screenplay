@@ -15,25 +15,23 @@ from docx import Document
 scp = Screenplay.Screenplay()
 #%%
 
-fp = 'F:/Github/Screenplay/private_screenplays/wanglai2.xml'
-fp = 'F:/Github/Screenplay/private_screenplays/愚人之家（2019稿）nowm.docx'
+
 fp = 'F:/Github/Screenplay/private_screenplays/合并剧本word.docx'
+fp = 'F:/Github/Screenplay/private_screenplays/wanglai2.xml'
+
 fp = 'input/A Nightmare on Elm Street 3_ Dream Warriors_script.txt'
-
-
+fp = 'F:/Github/Screenplay/private_screenplays/愚人之家（2019稿）nowm.docx'
 #%%
 'F:/Github/Screenplay/private_screenplays/合并剧本word.docx'.split('.')[-1]
 #%%
-Read = Read()
-dfsc = Read.auto(fp)
+dfsc = scp.read.auto(fp)
 #%%
-'docx' in ['doc', 'docx']
+dfsc_psh = scp.parse.scene_heading(dfsc)
 #%%
 dfsc = scp.read.docx(fp, pat_sh=u'【】')
 
 #%%
-pat_d = '[:：]'
-    
-idx_d = dfsc.loc[dfsc['Element'].str.contains(pat_d)].index
+dfD = scp.parse.Dialogue(dfsc)
+#%%
 
-dfsc.loc[idx_d, 'Element'].str.split(pat_d, n=1, expand=True)
+dfD['dialogue'].str.split('([(（].*[）)])', expand=True)

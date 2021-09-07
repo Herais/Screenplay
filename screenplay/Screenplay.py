@@ -70,17 +70,15 @@ class Read(object):
             print('file does not exist')
         
         # get file extension
+        filepath = str(filepath)
         fextention = str(filepath).split('.')[-1]
         
         if fextention in ['txt', 'text']:
-            dfsc = self.text(filepath)
-            
-        if fextention in ['doc', 'docx']:
-            dfsc = self.docx(filepath)
-            
-        if fextention in ['xml']:
-            dfsc = self.openxml(filepath)
-        
+            dfsc = self.text(filepath)         
+        elif fextention in ['doc', 'docx']:
+            dfsc = self.docx(filepath)            
+        elif fextention in ['xml']:
+            dfsc = self.openxml(filepath)       
         else:
             dfsc = None
             
@@ -148,7 +146,6 @@ class Read(object):
             DESCRIPTION.
 
         """
-        
         # Read text file
         f = open(filepath)
         lines = f.readlines()
@@ -222,7 +219,7 @@ class Read(object):
         # Organize Return
         dfsc = dfsc[['Scene', 'Element', 'Grp', 'Type']].copy()
         
-        return dfsc
+        return dfsc.copy()
     
     @staticmethod
     def docx(filepath: str, 
@@ -231,7 +228,9 @@ class Read(object):
                       '内\.', '内,', '外\.', '外,', '内 ', '外 ',
                      ],
              pat_shot=['FADE', 'CUT', 'DISSOLVE', 'INTERCUT'],
-             pat_d=None) -> pd.DataFrame:
+             pat_d=None,
+             lang='en'
+             ) -> pd.DataFrame:
         '''
         This function reads word docx into a screenplay structured pd.DataFrame, 
         oneline per row.
@@ -287,13 +286,13 @@ class Read(object):
         dfsc['Type'] = dfsc['Type'].fillna('Action')
  
         # Identify SHOT in A Group
-        idx_shot_and_transition = dfsc[(dfsc['Grp'] == 'A') & dfsc['raw'].str.isupper()].index
+        idx_shot_and_transition = dfsc[(dfsc['Grp'] == 'A') & dfsc['Element'].str.isupper()].index
         dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Grp'] = 'S'
         dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Type'] = 'Shot'
         
         #Identify TRansition in A Group
         idx_transition = dfsc[(dfsc.index.isin(idx_shot_and_transition)) & 
-                dfsc['raw'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
+                dfsc['Element'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
         dfsc.loc[dfsc.index.isin(idx_transition), 'Grp'] = 'T'
         dfsc.loc[dfsc.index.isin(idx_transition), 'Type'] = 'Transition'
         
@@ -333,8 +332,11 @@ class Parse(object):
         super(Parse, self).__init__()    
     
     @staticmethod
-    def scene_heading(df: pd.DataFrame,
-                 pat_sh=None,
+    def Scene_Heading(df: pd.DataFrame,
+                 pat_sh=['INT./EXT.', 'INT/EXT', 'EXT', 'EXT\.', 'INT', 'INT\.', 
+                      '内./外.', '内/外.', '内景', '外景', 
+                      '内\.', '内,', '外\.', '外,',
+                     ],
                  pat_time:str = '[-——]+\s*(.*)',
                  pat_location:str = '[-——\.,]+'
                  ) -> pd.DataFrame:
@@ -354,11 +356,6 @@ class Parse(object):
         idx_sh = dfsc[dfsc['Grp'] == 'H'].index
         
         # Extract Location
-        if not pat_sh:
-            pat_sh = ['INT./EXT.', 'INT/EXT', 'EXT', 'EXT\.', 'INT', 'INT\.', 
-                      '内./外.', '内/外.', '内景', '外景', 
-                      '内\.', '内,', '外\.', '外,',
-                     ]
         dfsc.loc[dfsc.index.isin(idx_sh), 'IE'] = \
             dfsc.loc[dfsc.index.isin(idx_sh), 'Element'].str.extract(
                 '({})'.format('|'.join(pat_sh)), expand=False)
@@ -367,7 +364,6 @@ class Parse(object):
         dfsc.loc[dfsc.index.isin(idx_sh), 'Time'] = \
             dfsc.loc[dfsc.index.isin(idx_sh), 'Element'].str.extract(
                 pat_time, expand=False)
-
         
         # Extract Location
         dfsc.loc[dfsc.index.isin(idx_sh), 'Location'] = \
@@ -376,6 +372,41 @@ class Parse(object):
                 axis=1)
             
         return dfsc.copy()
+    
+    @staticmethod
+    def Dialogue(df: pd.DataFrame,
+                 pat_dchar='[:：]',
+                 pat_ddialogue=None,
+                 pat_parenthetical='([(（].*[）)])',
+                 ) -> pd.DataFrame():
+        
+        dfsc = df.copy()
+        
+        # Define Columns if not exist
+        if 'dchar' not in dfsc.columns:
+            dfsc['dchar'] = None
+        if 'dchar_p' not in dfsc.columns:
+            dfsc['dchar_p'] = None
+        if 'dialogue' not in dfsc.columns:
+            dfsc['dialogue'] = None      
+        if 'dialogue_p' not in dfsc.columns:
+            dfsc['dialogue_p'] = None
+            
+        dfD = dfsc.loc[dfsc['Grp'] == 'D', 'Element']
+        #idx_D = dfsc.loc[dfsc['Grp'] == 'D', 'Element'].index
+        
+        #Extract dchar and dialogue
+        dfD = dfD.str.split(pat_dchar, n=1, expand=True)
+        dfD = dfD.rename(columns={0:'dchar', 1:'dialogue'})
+        
+        #Extract dchar parenthetical, if exists
+        dfD = dfD['dchar'].str.split(pat_parenthetical, expand=True)
+        
+        #Extract dialogue parenthetical, if exist
+        #dfD = dfD['dialogue'].str.split(pat_parenthetical, expand=True)
+        
+        
+        return dfD.copy()
     
 class Elements(object):
     
