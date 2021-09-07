@@ -4,7 +4,7 @@ Created on Mon Feb 17 00:31:27 2020
 
 @author: VXhpUS
 """
-
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import re
@@ -15,7 +15,6 @@ import lxml
 import lxml.etree as et
 import codecs
 import math
-
 
 ## For Translate
 import hashlib
@@ -57,13 +56,107 @@ class Screenplay(object):
 
 class Read(object):
 
-    def __init__(self):  
+    def __init__(self):
+        
         super(Read, self).__init__()
-    
+
+
     @staticmethod
-    def openxml(filepath: str) -> pd.DataFrame:
-        sc = pd.read_xml(filepath)
+    def auto(filepath: str) -> pd.DataFrame:
+        fp = Path(filepath)
+        try:
+            filepath = fp.resolve()
+        except FileNotFoundError:
+            print('file does not exist')
+        
+        fextention = str(filepath).split('.')[-1]
+        
+        if fextention in ['txt', 'text']:
+            sc = Read.text(filepath)
+            
+        if fextention in ['doc', 'docx']:
+            sc = Read.docx(filepath)
+            
+        if fextention in ['xml']:
+            sc = Read.openxml(filepath)
+        
+        else:
+            sc = None
+            
         return sc
+        
+    @staticmethod
+    def openxml(filepath: str,
+                pat_sh=None,
+                pat_d=None) -> pd.DataFrame:
+        
+        dfsc = pd.read_xml(filepath, xpath='paragraphs/para')
+        dfsc['style'] = pd.read_xml(
+            filepath, xpath='paragraphs/para/style')['basestyle']
+        dfsc = dfsc.rename(columns={'style':'Type', 'text': 'Element'})
+        
+        # Define Columns
+        dfsc['Grp'] = None
+        dfsc['Scene'] = None
+        
+        # Assign Grp D and A
+        dfsc.loc[dfsc['Type'].str.contains('Dialogue|Character'),
+                 'Grp'] = 'D'
+        dfsc.loc[dfsc['Type'].str.contains('Action'),
+                 'Grp'] = 'A'
+        
+        # regenerate Scene Numbers
+        idx_sh = dfsc[dfsc['Type']== 'Scene Heading'].index
+        dfsc.loc[dfsc.index.isin(idx_sh), 'Grp'] = 'H'
+        nscenes = len(idx_sh)
+        dfsc.loc[dfsc.index.isin(idx_sh), 'Scene'] = list(range(1, nscenes+1))
+        dfsc['Scene'].fillna(method='ffill', inplace=True)
+        dfsc['Scene'].fillna(-1, inplace=True)
+        dfsc['Scene'].astype('int')
+
+         # Break down Scene Headings       
+        dfsc['IE'] = None
+        dfsc['Location'] = None
+        dfsc['Time'] = None
+        
+        # Extract Location
+        if not pat_sh:
+            pat_sh = ['INT./EXT.', 'INT/EXT', 'EXT', 'EXT\.', 'INT', 'INT\.', 
+                      '内./外.', '内/外.', '内景', '外景', 
+                      '内\.', '内,', '外\.', '外,',
+                     ]
+        dfsc.loc[dfsc.index.isin(idx_sh), 'IE'] = \
+            dfsc.loc[dfsc.index.isin(idx_sh), 'Element'].str.extract(
+                '({})'.format('|'.join(pat_sh)), expand=False)
+        
+        # Extract Time
+        pat_location = '[-——]+\s*(.*)'
+        dfsc.loc[dfsc.index.isin(idx_sh), 'Time'] = \
+            dfsc.loc[dfsc.index.isin(idx_sh), 'Element'].str.extract(
+                pat_location, expand=False)
+
+        
+        # Extract Location
+        def extract_location(x):
+            if x['Element']:
+                location = str(x['Element'])
+            else: return ''
+            if x['IE']:
+                location = re.sub(re.escape(str(x['IE'])), '', location)
+            if x['Time']:
+                location = re.sub(re.escape(str(x['Time'])), '', location)
+                
+            location = re.sub('[-——\.,]+', '', location)
+            return location.strip()
+
+        dfsc.loc[dfsc.index.isin(idx_sh), 'Location'] = \
+            dfsc.loc[dfsc.index.isin(idx_sh), :].apply(
+                lambda x: extract_location(x), axis=1)
+        
+        dfsc.dropna(subset=['Element'], inplace=True)
+        
+        dfsc = dfsc[['Scene', 'Element', 'Grp', 'Type', 'IE', 'Location', 'Time']]
+        return dfsc
     
     @staticmethod
     def text(filepath: str,
@@ -218,12 +311,12 @@ class Read(object):
         '''
         document = Document(filepath)
         num_p = len(document.paragraphs)
-        script = []
+        dfsc = []
         for num in range(num_p):
-            script.append(document.paragraphs[num].text)
-        script = pd.Series(script).rename('raw')
-        script = script[script != ''] # remove empty lines
-        script = pd.DataFrame(script) # convert to DataFrame
+            dfsc.append(document.paragraphs[num].text)
+        dfsc = pd.Series(dfsc).rename('raw')
+        dfsc = dfsc[dfsc != ''] # remove empty lines
+        dfsc = pd.DataFrame(dfsc) # convert to DataFrame
         
         # Paragraph type
         '''
@@ -238,38 +331,38 @@ class Read(object):
         t = transition (i.e. CUT TO, DISSOLVE, FADE, CROSS FADE)
             
         '''
-        script['ptype'] = None
+        dfsc['ptype'] = None
         
         # identify Scene Headings
         if not pat_sh:
             pat_sh = ['INT./EXT.', 'INT/EXT', 'EXT', 'EXT\.', 'INT', 'INT\.', 
                       '内./外.', '内/外.', '内景', '外景', 
-                      '内\.', '内,', '外\.', '外,',
+                      '内\.', '内,', '外\.', '外,', '内 ', '外 ',
                      ]
-        idx_sh = script[script['raw'].str.contains('|'.join(pat_sh))].index
-        script.loc[script.index.isin(idx_sh), 'ptype'] = 'Scene Heading'
+        idx_sh = dfsc[dfsc['raw'].str.contains('|'.join(pat_sh))].index
+        dfsc.loc[dfsc.index.isin(idx_sh), 'ptype'] = 'Scene Heading'
         
         # Regenerate Scene Numbers
-        script['Scene'] = None
-        script.loc[script.index.isin(idx_sh), 'Scene'] = [i 
+        dfsc['Scene'] = None
+        dfsc.loc[dfsc.index.isin(idx_sh), 'Scene'] = [i 
             for i in range(1, len(idx_sh)+1)]
-        script['Scene'].fillna(method='ffill', inplace=True)
-        script['Scene'].fillna(-1, inplace=True)
+        dfsc['Scene'].fillna(method='ffill', inplace=True)
+        dfsc['Scene'].fillna(-1, inplace=True)
             
         # Scene Heading elements
-        script['h_number'] = None
-        script['h_inout'] = None
-        script['h_title'] = None
-        script['h_time'] = None
-        script['h_parenthesis'] = None
-        script['h_characters_in_scene'] = None
+        dfsc['h_number'] = None
+        dfsc['h_inout'] = None
+        dfsc['h_title'] = None
+        dfsc['h_time'] = None
+        dfsc['h_parenthesis'] = None
+        dfsc['h_characters_in_scene'] = None
         
         # Dialog 
-        script['d_character'] = None
-        script['d_character_parenthesis'] = None
-        script['d_dialog'] = None
-        script['d_dialog_parenthesis'] = None
-        return script
+        dfsc['d_character'] = None
+        dfsc['d_character_parenthesis'] = None
+        dfsc['d_dialog'] = None
+        dfsc['d_dialog_parenthesis'] = None
+        return dfsc
 
     
     
