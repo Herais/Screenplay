@@ -374,39 +374,59 @@ class Parse(object):
         return dfsc.copy()
     
     @staticmethod
-    def Dialogue(df: pd.DataFrame,
+    def D_Character_and_Dialogue(df: pd.DataFrame,
                  pat_dchar='[:：]',
                  pat_ddialogue=None,
                  pat_parenthetical='([(（].*[）)])',
                  ) -> pd.DataFrame():
         
-        dfsc = df.copy()
-        
-        # Define Columns if not exist
-        if 'dchar' not in dfsc.columns:
-            dfsc['dchar'] = None
-        if 'dchar_p' not in dfsc.columns:
-            dfsc['dchar_p'] = None
-        if 'dialogue' not in dfsc.columns:
-            dfsc['dialogue'] = None      
-        if 'dialogue_p' not in dfsc.columns:
-            dfsc['dialogue_p'] = None
-            
+        dfsc = df.copy()        
         dfD = dfsc.loc[dfsc['Grp'] == 'D', 'Element']
-        #idx_D = dfsc.loc[dfsc['Grp'] == 'D', 'Element'].index
         
-        #Extract dchar and dialogue
-        dfD = dfD.str.split(pat_dchar, n=1, expand=True)
-        dfD = dfD.rename(columns={0:'dchar', 1:'dialogue'})
+        #Extract Character and Dialogue in Grp D
+        dfD_expanded = dfD.str.split(pat_dchar, n=1, expand=True)
+        dfD_expanded.columns = ['Character', 'Dialogue']           
+        dfD_melted = dfD_expanded.melt(ignore_index=False)
+        dfD_melted.columns = ['Type_tmp', 'Element_tmp']
+        dfsc_merged = dfsc.merge(dfD_melted, left_index=True, right_index=True, how='left')           
+        dfsc_merged['Type'].update(dfsc_merged['Type_tmp'])
+        dfsc_merged['Element'].update(dfsc_merged['Element_tmp'])
+        dfsc_merged.drop(['Type_tmp', 'Element_tmp'], axis=1, inplace=True)
+        dfsc = dfsc_merged.reset_index(drop=True)
+            
+        return dfsc.copy()
+
+    def D_Character_Parenthetical(df: pd.DataFrame,
+                                  pat_parenthetical='([(（].*[）)])',
+                                  ) -> pd.DataFrame():
         
-        #Extract dchar parenthetical, if exists
-        dfD = dfD['dchar'].str.split(pat_parenthetical, expand=True)
+        dfsc = df.copy()
+        dfC = dfsc.loc[dfsc['Type'] == 'Character']
+
+        dfC_expanded = dfC['Element'].str.split(pat_parenthetical, expand=True)
+        dfC_expanded.columns = ['Character', 'D_Parenthetical']
+        dfC_melted = dfC_expanded.melt(ignore_index=False)
+        dfC_melted.columns = ['Type_tmp', 'Element_tmp']
+        dfsc_merged = dfsc.merge(dfC_melted, left_index=True, 
+                                 right_index=True, how='left')           
+        dfsc_merged['Type'].update(dfsc_merged['Type_tmp'])
+        dfsc_merged['Element'].update(dfsc_merged['Element_tmp'])
+        dfsc_merged.drop(['Type_tmp', 'Element_tmp'], axis=1, inplace=True)     
+        dfsc = dfsc_merged.reset_index(drop=True)
         
-        #Extract dialogue parenthetical, if exist
-        #dfD = dfD['dialogue'].str.split(pat_parenthetical, expand=True)
-        
-        
-        return dfD.copy()
+        return dfsc.copy()
+                    
+
+    
+    def D_Dialogue_Parenthetical(df: pd.DataFrame,
+                             pat_parenthetical='([(（].*[）)])',
+                            ) -> pd.DataFrame():
+        dfsc = df.copy()
+        dfD = dfsc.loc[dfsc['Type'] == 'Dialogue', 'Element']
+        dfD_expanded = dfD.str.split(pat_parenthetical, expand=True)
+        dfD_melted = dfD_expanded.melt(ignore_index=False)
+        dfD_melted.columns = ['Type_tmp', 'Element_tmp']
+        dfsc_merged = dfsc.merge(dfD_melted, left_index=True, right_index=True, how='left') 
     
 class Elements(object):
     
