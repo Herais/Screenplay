@@ -30,7 +30,6 @@ class Screenplay(object):
 
         super(Screenplay, self).__init__()
         self.sc = sc
-        self.elements = Elements()
         self.export = Export().to_OpenXML()
         self.groupSH2Name = {
                 'A': 'Action Group',
@@ -446,114 +445,6 @@ class Parse(object):
         
         return dfsc.copy()
     
-class Elements(object):
-    
-    def __init__(self):
-        super(Elements, self).__init__()
-        
-    def identify_scene_heading(self, sc, pattern: str = '\d*[.\s]') -> pd.DataFrame:
-        sc.loc[sc['pcontent'].str.contains(pattern), 'ptype'] = 'h'
-        return sc
-    
-    def identify_dialog(self, sc, pattern: str = u'[：:]') -> pd.DataFrame:
-        sc.loc[sc['pcontent'].apply(lambda x: x[0:10]).str.contains(pattern), 'ptype'] = 'd'
-        return sc
-    
-    def identify_action(self, sc, pattern: str = None) -> pd.DataFrame:
-        if pattern:
-            sc.loc[sc['pcontent'].str.contains(pattern), 'ptype'] = 'a'
-        else:
-            sc['ptype'].fillna(value='a', inplace=True)
-        return sc
-    
-    # Scene Heading Subelements
-    def identify_scene_number(self, 
-                              sc, 
-                              pattern: str, 
-                              identify_type_first: bool = False) -> pd.DataFrame:
-        if identify_type_first:
-            sc = self.identify_scene_heading(sc, pattern)
-        sc.loc[sc['ptype'] == 'h', 'h_number'] = sc.loc[sc['ptype'] == 'h', 'pcontent'].str.extract(pattern).iloc[:, 0]
-        #sc['h_number'].fillna(method='ffill', inplace=True)
-        return sc
-    
-    def identify_scene_inout(self, 
-                              sc, 
-                              pattern: str = r"[\w\S]*(.*?)[，,]", 
-                              identify_type_first: bool = False) -> pd.DataFrame:
-        if identify_type_first:
-            sc = self.identify_scene_heading(sc, pattern)
-        sc.loc[sc['ptype'] == 'h', 'h_inout'] = sc.loc[sc['ptype'] == 'h', 'pcontent'].str.extract(pattern).iloc[:, 0].str.lstrip(' ')
-        #sc['h_inout'].fillna(method='ffill', inplace=True)
-        return sc
-        pass
-        
-    def identify_scene_title(self, 
-                          sc, 
-                          pattern: str = r'景[，,](\s*\w*.*)[，,]', 
-                          identify_type_first: bool = False) -> pd.DataFrame:
-        if identify_type_first:
-            sc = self.identify_scene_heading(sc, pattern)
-        sc.loc[sc['ptype'] == 'h', 'h_title'] = sc.loc[sc['ptype'] == 'h', 'pcontent'].str.extract(pattern).iloc[:, 0]
-        #sc['h_title'].fillna(method='ffill', inplace=True)
-        return sc
-
-    def identify_scene_time(self, 
-                          sc, 
-                          pattern: str = r'[，,](\s*\w*.*$)', 
-                          identify_type_first: bool = False) -> pd.DataFrame:
-        if identify_type_first:
-            sc = self.identify_scene_heading(sc, pattern)
-        sc.loc[sc['ptype'] == 'h', 'h_time'] = sc.loc[sc['ptype'] == 'h', 'pcontent'].str.extract(pattern).iloc[:, 0]
-        #sc['h_time'].fillna(method='ffill', inplace=True)
-        return sc
-    
-    # Dialog Subelements
-    def identify_dialog_character(self,
-                                  sc,
-                                  pattern: str = r'(^.*$)[:：]',
-                                  identify_type_first: bool = False) -> pd.DataFrame:
-        if identify_type_first:
-            sc = self.identify_dialog(sc, pattern)
-        sc.loc[sc['ptype'] == 'd', 'd_character'] = sc.loc[sc['ptype'] == 'd', 'pcontent'].str.extract(pattern).iloc[:, 0]
-        sc  = self.identify_dialog_character_parenthesis(sc)
-        #sc['h_time'].fillna(method='ffill', inplace=True)
-        return sc
-
-    def identify_dialog_character_parenthesis(self,
-                                  sc: pd.DataFrame,
-                                  pattern: str = r'[（(](.*)[）)]',
-                                  identify_type_first: bool = False) -> pd.DataFrame:
-        if identify_type_first:
-            sc = self.identify_dialog(sc, pattern)
-        sc.loc[sc['ptype'] == 'd', 'd_character_parenthesis'] = sc.loc[sc['ptype'] == 'd', 'd_character'].str.extract(pattern).iloc[:, 0]
-        sc.loc[sc['ptype'] == 'd', 'd_character'] = sc.loc[sc['ptype'] == 'd', 'd_character'].str.replace(pattern, '')
-        #sc['h_time'].fillna(method='ffill', inplace=True)
-        return sc        
-                        
-    def identify_dialog_dialog(self,
-                                 sc,
-                                 pattern: str = r'[:：](.*)',
-                                 identify_type_first: bool = False) -> pd.DataFrame:
-       if identify_type_first:
-           sc = self.identify_dialog(sc, pattern)
-       sc.loc[sc['ptype'] == 'd', 'd_dialog'] = sc.loc[sc['ptype'] == 'd', 'pcontent'].str.extract(pattern).iloc[:, 0]
-       sc.loc[sc['ptype'] == 'd', 'd_dialog'] = sc.loc[sc['ptype'] == 'd', 'd_dialog'].apply(lambda x: x.lstrip(' ').rstrip(' '))
-       sc  = self.identify_dialog_parenthetisis(sc)
-       return sc
-   
-    def identify_dialog_parenthetisis(self,
-                                      sc: pd.DataFrame,
-                                      pattern: str = r'[（(](.*)[）)]',
-                                      identify_type_first: bool = False) -> pd.DataFrame:
-       if identify_type_first:
-           sc = self.identify_dialog(sc, pattern)
-       sc.loc[sc['ptype'] == 'd', 'd_dialog_parenthesis'] = sc.loc[sc['ptype'] == 'd', 'd_dialog']. \
-           str.extractall(r'[（(](.*?)[）)]').reset_index().groupby('level_0')[0].agg(';'.join).str.split(';')
-
-
-       #sc['h_time'].fillna(method='ffill', inplace=True)
-       return sc
    
 ######################################################
 class Export(object):

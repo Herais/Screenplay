@@ -11,7 +11,7 @@ from screenplay import Screenplay
 import pandas as pd
 import math
 from docx import Document
-#%%
+
 scp = Screenplay.Screenplay()
 #%%
 
@@ -32,17 +32,4 @@ dfsc1 = scp.parse.D_Character_and_Dialogue(dfsc)
 dfsc2 = scp.parse.D_Character_Parenthetical(dfsc1)
 
 #%%
-dfC = dfsc1.loc[dfsc1['Type'] == 'Character', 'Element']
-#%%
-pat_parenthetical='([(（].*[）)])'
-dfC_expanded = dfC.str.split(pat_parenthetical, expand=True)
-dfC_expanded = dfC_expanded.rename(columns={0: 'Character', 1:'Parenthetic'})
-#%%
-dfC_melted = dfC_expanded[['Character', 'Parenthetic']].melt(ignore_index=False)
-#%%
-dfsc_merged = dfsc1.merge(dfC_melted, left_index=True, right_index=True, how='left') 
-#%%
-dfsc_merged['Type'].update(dfsc_merged['variable'])
-dfsc_merged['Element'].update(dfsc_merged['value'])
-#%%
-dfsc_merged.columns
+dfsc3 = scp.parse.D_Dialogue_Parenthetical(dfsc2)
