@@ -111,13 +111,14 @@ class Read(object):
         dfsc = dfsc.rename(columns={'style':'Type', 'text': 'Element'})
         dfsc['Type'] = dfsc['Type'].apply(str)
         dfsc['Element'] = dfsc['Element'].apply(str)
-        
+
+        dfsc.loc[dfsc['Type'] == 'Parenthetical', 'Type'] = 'Parenthetical_D'
         # Define Columns
         dfsc['Grp'] = None
         dfsc['Scene'] = None
         
         # Assign Grp D and A
-        dfsc.loc[dfsc['Type'].str.contains('Dialogue|Character'),
+        dfsc.loc[dfsc['Type'].str.contains('Dialogue|Character|Parenthetical_D'),
                  'Grp'] = 'D'
         dfsc.loc[dfsc['Type'].str.contains('Action'),
                  'Grp'] = 'A'
