@@ -26,3 +26,14 @@ fp = 'F:/Github/Screenplay/private_screenplays/Friend_Request_2019.xml'
 
 #%%
 dfsc = scp.read.auto(fp)
+dfsc = scp.parse.Scene_Heading(dfsc)
+#%%
+dft0 = dfsc.loc[dfsc['Type'].isin(['Action', 'Dialogue']), 'Element'].to_frame()
+#%%
+dft0['zh'] = dft0['Element'].apply(scp.translate.Baidu, 
+                                   lang_from='en', 
+                                   lang_to='zh')
+#%%
+dfsc.loc[dfsc['Type'].isin(['Action', 'Dialogue']), 'zh'] = dft0['zh']
+#%%
+dfsc.to_json('F:/Github/Screenplay/private_screenplays/df_friend_request.json')
