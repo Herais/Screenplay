@@ -427,6 +427,7 @@ class Parse(object):
             {0:'Character', 1:'Parenthetical_C'})
         dfC_melted = dfC_expanded[['Character', 'Parenthetical_C']].melt(ignore_index=False)
         dfC_melted = dfC_melted.dropna(subset=['value'])
+        dfC_melted['value'] = dfC_melted['value'].apply(str.strip)
         dfsc_merged = dfsc.merge(dfC_melted, left_index=True, 
                                  right_index=True, how='left')           
         dfsc_merged['Type'].update(dfsc_merged['variable'])
@@ -434,6 +435,8 @@ class Parse(object):
         dfsc_merged.drop(['variable', 'value'], axis=1, inplace=True)     
         dfsc = dfsc_merged.reset_index(drop=True)
         dfsc = dfsc[dfsc['Element'] != '']
+        
+        dfsc.loc[dfsc.Type == 'Character', 'Element']
         
         return dfsc.copy()
                     
