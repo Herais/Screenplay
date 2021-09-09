@@ -3,3 +3,4 @@ private_screenplays
 colab_git_setup.ipynb
 SC_Format_and_Translate.ipynb
 screenplay/__pycache__/
+*.pyc

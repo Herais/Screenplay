@@ -15,6 +15,7 @@ import lxml
 import lxml.etree as et
 import codecs
 import math
+import PyPDF2
 
 ## For Translate
 import hashlib
@@ -82,16 +83,34 @@ class Read(object):
             dfsc = None
             
         return dfsc
+    
+    @staticmethod
+    def pdf(filepath: str,
+                pat_sh=None,
+                pat_d=None) -> pd.DataFrame:
+        # creating an object 
+        file = open(filepath, 'rb')
+        pdfReader = PyPDF2.PdfFileReader(file)
+        numPages = pdfReader.numPages
+        txt = ''
+        for n in range(numPages):
+            txt += pdfReader.getPage(n).extractText()
         
+        pdfReader.close()
+        file.close()
+                
     @staticmethod
     def openxml(filepath: str,
                 pat_sh=None,
-                pat_d=None) -> pd.DataFrame:
+                pat_d=None,
+                xpath=None) -> pd.DataFrame:
         
         dfsc = pd.read_xml(filepath, xpath='paragraphs/para')
         dfsc['style'] = pd.read_xml(
             filepath, xpath='paragraphs/para/style')['basestyle']
         dfsc = dfsc.rename(columns={'style':'Type', 'text': 'Element'})
+        dfsc['Type'] = dfsc['Type'].apply(str)
+        dfsc['Element'] = dfsc['Element'].apply(str)
         
         # Define Columns
         dfsc['Grp'] = None
