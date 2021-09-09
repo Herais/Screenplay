@@ -395,7 +395,8 @@ class Parse(object):
         dfsc = dfsc_merged.reset_index(drop=True)
             
         return dfsc.copy()
-
+    
+    @staticmethod
     def D_Character_Parenthetical(df: pd.DataFrame,
                                   pat_parenthetical='([(（].*[）)])',
                                   ) -> pd.DataFrame():
@@ -404,29 +405,46 @@ class Parse(object):
         dfC = dfsc.loc[dfsc['Type'] == 'Character']
 
         dfC_expanded = dfC['Element'].str.split(pat_parenthetical, expand=True)
-        dfC_expanded.columns = ['Character', 'D_Parenthetical']
-        dfC_melted = dfC_expanded.melt(ignore_index=False)
-        dfC_melted.columns = ['Type_tmp', 'Element_tmp']
+        dfC_expanded = dfC_expanded.rename(columns= 
+            {0:'Character', 1:'Parenthetical_C'})
+        dfC_melted = dfC_expanded[['Character', 'Parenthetical_C']].melt(ignore_index=False)
+        dfC_melted = dfC_melted.dropna(subset=['value'])
         dfsc_merged = dfsc.merge(dfC_melted, left_index=True, 
                                  right_index=True, how='left')           
-        dfsc_merged['Type'].update(dfsc_merged['Type_tmp'])
-        dfsc_merged['Element'].update(dfsc_merged['Element_tmp'])
-        dfsc_merged.drop(['Type_tmp', 'Element_tmp'], axis=1, inplace=True)     
+        dfsc_merged['Type'].update(dfsc_merged['variable'])
+        dfsc_merged['Element'].update(dfsc_merged['value'])
+        dfsc_merged.drop(['variable', 'value'], axis=1, inplace=True)     
         dfsc = dfsc_merged.reset_index(drop=True)
+        dfsc = dfsc[dfsc['Element'] != '']
         
         return dfsc.copy()
                     
-
-    
+    @staticmethod   
     def D_Dialogue_Parenthetical(df: pd.DataFrame,
                              pat_parenthetical='([(（].*[）)])',
                             ) -> pd.DataFrame():
         dfsc = df.copy()
-        dfD = dfsc.loc[dfsc['Type'] == 'Dialogue', 'Element']
-        dfD_expanded = dfD.str.split(pat_parenthetical, expand=True)
+        dfD = dfsc.loc[dfsc['Type'] == 'Dialogue']
+        dfD_expanded = dfD['Element'].str.split(pat_parenthetical, expand=True)
         dfD_melted = dfD_expanded.melt(ignore_index=False)
-        dfD_melted.columns = ['Type_tmp', 'Element_tmp']
-        dfsc_merged = dfsc.merge(dfD_melted, left_index=True, right_index=True, how='left') 
+        dfD_melted.dropna(subset=['value'], inplace=True)
+        dfD_melted = dfD_melted[dfD_melted['value'] != '']
+        
+        #Assign Label
+        dfD_melted.loc[dfD_melted['value'].str.contains(pat_parenthetical), 
+               'variable'] = 'Parenthetical_D'
+        dfD_melted.loc[~dfD_melted['value'].str.contains(pat_parenthetical), 
+               'variable'] = 'Dialogue'
+        
+        df_merged = dfsc.merge(dfD_melted, 
+                                left_index=True, right_index=True, how='left')
+        df_merged['Type'].update(df_merged['variable'])
+        df_merged['Element'].update(df_merged['value']) 
+        
+        dfsc = df_merged[['Scene', 'Element', 'Grp', 'Type']].reset_index(
+            drop=True)
+        
+        return dfsc.copy()
     
 class Elements(object):
     
