@@ -33,21 +33,21 @@ class Screenplay(object):
         self.sc = sc
         self.export = Export().to_OpenXML()
         self.groupSH2Name = {
-                'A': 'Action Group',
-                'D': 'Dialogue Group',
-                'SH': 'Scene Heading Group'
-                }
+            'A': 'Action Group',
+            'D': 'Dialogue Group',
+            'SH': 'Scene Heading Group'
+            }
         self.element2basestyle = {
-                    'text':'Normal Text',
-                    'h': 'Scene Heading',
-                    'a': 'Action',
-                    'c': 'Character',
-                    'p': 'Parenthetical',
-                    'd': 'Dialogue',
-                    't': 'Transition',
-                    's': 'Shot',
-                    'uc': 'Unspoken Character'
-                    }
+            'text':'Normal Text',
+            'h': 'Scene Heading',
+            'a': 'Action',
+            'c': 'Character',
+            'p': 'Parenthetical',
+            'd': 'Dialogue',
+            't': 'Transition',
+            's': 'Shot',
+            'uc': 'Unspoken Character'
+            }
         self.translate = Translate()
         self.read = Read()
         self.parse = Parse()
@@ -103,6 +103,7 @@ class Read(object):
     def openxml(filepath: str,
                 pat_sh=None,
                 pat_d=None,
+                pat_shot=['FADE', 'CUT', 'DISSOLVE', 'INTERCUT'],
                 xpath=None) -> pd.DataFrame:
         
         dfsc = pd.read_xml(filepath, xpath='paragraphs/para')
@@ -122,6 +123,18 @@ class Read(object):
                  'Grp'] = 'D'
         dfsc.loc[dfsc['Type'].str.contains('Action'),
                  'Grp'] = 'A'
+
+        # Identify SHOT and Transition in A Group
+        idx_shot_and_transition = dfsc[(dfsc['Grp'] == 'A') & dfsc['raw'].str.isupper()].index
+        dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Grp'] = 'S'
+        dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Type'] = 'Shot'
+        
+        pat_shot = ['FADE', 'CUT', 'DISSOLVE', 'INTERCUT']
+        idx_transition = dfsc[(dfsc.index.isin(idx_shot_and_transition)) & 
+                dfsc['raw'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
+        dfsc.loc[dfsc.index.isin(idx_transition), 'Grp'] = 'T'
+        dfsc.loc[dfsc.index.isin(idx_transition), 'Type'] = 'Transition'
+
         
         # regenerate Scene Numbers
         idx_sh = dfsc[dfsc['Type']== 'Scene Heading'].index
@@ -146,6 +159,7 @@ class Read(object):
                       '内./外.', '内/外.', '内景', '外景', 
                       '内\.', '内,', '外\.', '外,',
                      ],
+             pat_shot=['FADE', 'CUT', 'DISSOLVE', 'INTERCUT']
              pat_d=None) -> pd.DataFrame:
         """
         This functions opens screennplays in text, assumming it somewhat
@@ -215,9 +229,8 @@ class Read(object):
         dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Grp'] = 'S'
         dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Type'] = 'Shot'
         
-        pat_shot = ['FADE', 'CUT', 'DISSOLVE', 'INTERCUT']
         idx_transition = dfsc[(dfsc.index.isin(idx_shot_and_transition)) & 
-                dfsc['raw'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
+            dfsc['raw'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
         dfsc.loc[dfsc.index.isin(idx_transition), 'Grp'] = 'T'
         dfsc.loc[dfsc.index.isin(idx_transition), 'Type'] = 'Transition'
         
@@ -243,10 +256,12 @@ class Read(object):
     
     @staticmethod
     def docx(filepath: str, 
-             pat_sh=['INT./EXT.', 'INT/EXT', 'EXT', 'EXT\.', 'INT', 'INT\.', 
-                      '内./外.', '内/外.', '内景', '外景', 
-                      '内\.', '内,', '外\.', '外,', '内 ', '外 ',
-                     ],
+            pat_sh=['INT./EXT.', 'INT/EXT', 'INT./EXT', 'INT/EXT.',
+                    'EXT./INT.', 'EXT/INT', 'EXT./INT', 'EXT/INT.',
+                    'EXT', 'EXT\.', 'INT', 'INT\.', 
+                    '内./外.', '内/外.', '内景', '外景', 
+                    '内\.', '内,', '外\.', '外,',
+                   ],
              pat_shot=['FADE', 'CUT', 'DISSOLVE', 'INTERCUT'],
              pat_d=None,
              lang='en'
