@@ -134,7 +134,8 @@ class Read(object):
        
 
         # Clean na Element
-        dfsc.dropna(subset=['Element'], inplace=True)        
+        dfsc.dropna(subset=['Element'], inplace=True)
+        dfsc.dropna(how='all')        
         dfsc = dfsc[['Scene', 'Element', 'Grp', 'Type']].copy()
         
         return dfsc
@@ -352,10 +353,12 @@ class Parse(object):
     
     @staticmethod
     def Scene_Heading(df: pd.DataFrame,
-                 pat_sh=['INT./EXT.', 'INT/EXT', 'EXT', 'EXT\.', 'INT', 'INT\.', 
-                      '内./外.', '内/外.', '内景', '外景', 
-                      '内\.', '内,', '外\.', '外,',
-                     ],
+                 pat_sh=['INT./EXT.', 'INT/EXT', 'INT./EXT', 'INT/EXT.',
+                         'EXT./INT.', 'EXT/INT', 'EXT./INT', 'EXT/INT.',
+                         'EXT', 'EXT\.', 'INT', 'INT\.', 
+                         '内./外.', '内/外.', '内景', '外景', 
+                         '内\.', '内,', '外\.', '外,',
+                        ],
                  pat_time:str = '[-——]+\s*(.*)',
                  pat_location:str = '[-——\.,]+'
                  ) -> pd.DataFrame:
