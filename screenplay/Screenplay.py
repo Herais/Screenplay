@@ -159,7 +159,7 @@ class Read(object):
                       '内./外.', '内/外.', '内景', '外景', 
                       '内\.', '内,', '外\.', '外,',
                      ],
-             pat_shot=['FADE', 'CUT', 'DISSOLVE', 'INTERCUT']
+             pat_shot=['FADE', 'CUT', 'DISSOLVE', 'INTERCUT'],
              pat_d=None) -> pd.DataFrame:
         """
         This functions opens screennplays in text, assumming it somewhat
