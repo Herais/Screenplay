@@ -39,11 +39,4 @@ dfsc.loc[dfsc['Type'].isin(['Action', 'Dialogue']), 'zh'] = dft0['zh']
 #%%
 #dfsc.to_json('F:/Github/Screenplay/private_screenplays/df_friend_request.json')
 dfsc = pd.read_json('F:/Github/Screenplay/private_screenplays/df_friend_request.json')
-#%%
-
-en2zh_IE = {'INT': '内', 'EXT': '外'}
-en2zh_Time = {'NIGHT': '夜', 'DUSK': '傍晚',
-              'LATER': '稍后', 'CONTINUOUS': '继上','RAINY NIGHT': '雨夜'
-              }
-dfsc.loc[dfsc.Type == 'Character', 'Element'].unique()
 

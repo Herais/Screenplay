@@ -125,13 +125,14 @@ class Read(object):
                  'Grp'] = 'A'
 
         # Identify SHOT and Transition in A Group
-        idx_shot_and_transition = dfsc[(dfsc['Grp'] == 'A') & dfsc['raw'].str.isupper()].index
+        idx_shot_and_transition = dfsc[(dfsc['Grp'] == 'A') & 
+                                       dfsc['Elemeng'].str.isupper()].index
         dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Grp'] = 'S'
         dfsc.loc[dfsc.index.isin(idx_shot_and_transition), 'Type'] = 'Shot'
         
         pat_shot = ['FADE', 'CUT', 'DISSOLVE', 'INTERCUT']
         idx_transition = dfsc[(dfsc.index.isin(idx_shot_and_transition)) & 
-                dfsc['raw'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
+            dfsc['Element'].str.contains('|'.join(pat_shot), flags=re.IGNORECASE)].index
         dfsc.loc[dfsc.index.isin(idx_transition), 'Grp'] = 'T'
         dfsc.loc[dfsc.index.isin(idx_transition), 'Type'] = 'Transition'
 
