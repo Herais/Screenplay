@@ -499,7 +499,7 @@ class Export(object):
         def __init__(self):
             pass
     
-        def to_openxml(self, sc: pd.DataFrame, save: bool = False, file_path: str  = None) -> str:
+        def to_openxml(self, dfsc: pd.DataFrame, save: bool = False, file_path: str  = None) -> str:
             '''
             
     
@@ -518,7 +518,8 @@ class Export(object):
                 DESCRIPTION.
     
             '''
-            sc['formatted'] = None
+            df = dfsc.copy()
+            df['formatted'] = None
     
             header_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
             header_document = '<document type="Open Screenplay Format document" version="30">\n'
@@ -531,9 +532,9 @@ class Export(object):
             section_lists = '\t<lists>\n\t</lists>\n'
             footer_document = '</document>\n'
                 
-            sc = self.heading(sc)
-            sc = self.action(sc)
-            sc = self.dialog(sc)
+            df = self.heading(df)
+            df = self.action(df)
+            df = self.dialog(df)
     
             formatted_output = header_xml \
                              + header_document \
@@ -554,55 +555,62 @@ class Export(object):
             return formatted_output
         
         
-        def heading(self, sc: pd.DataFrame) -> pd.DataFrame:
-            sc.loc[sc['ptype'] == 'h', 'formatted'] = \
-                    sc.loc[sc['ptype'] == 'h', 'h_inout'].apply(lambda x: str(x) + '. ') \
-                +   sc.loc[sc['ptype'] == 'h', 'h_title'] \
-                +   sc.loc[sc['ptype'] == 'h', 'h_time'].apply(lambda x: ' - ' + str(x))
+        def heading(self, dfsc: pd.DataFrame) -> pd.DataFrame:
+            df = dfsc.copy()
+            df.loc[df['Grp'] == 'H', 'formatted'] = \
+                    df.loc[df['Grp'] == 'H', 'IE'].apply(lambda x: str(x) + '. ') \
+                +   df.loc[df['Grp'] == 'H', 'Location'] \
+                +   df.loc[df['Grp'] == 'H', 'Time'].apply(
+                    lambda x: ' - ' + str(x) if x else '')
             
-            sc.loc[sc['ptype'] == 'h', 'formatted'] = sc.loc[sc['ptype'] == 'h', 'formatted'].apply(
-                lambda x: '\t\t<para>\n\t\t\t<style basestylename="Scene Heading"/>\n\t\t\t<text>'
+            df.loc[df['Grp'] == 'H', 'formatted'] = \
+                df.loc[df['Grp'] == 'H', 'Element'].apply(
+                    lambda x: '\t\t<para>\n\t\t\t<style basestylename="Scene Heading"/>\n\t\t\t<text>'
                         + str(x)
                         + '</text>\n\t\t</para>\n'            
                 )
-            return sc
+            return df
         
-        def action(self, sc: pd.DataFrame) -> pd.DataFrame:
-            sc.loc[sc['ptype'] == 'a', 'formatted'] = \
-                sc.loc[sc['ptype'] == 'a', 'pcontent'].apply(lambda x: str(x).lstrip('\s').rstrip('\s').replace('&', '&amp;'))
-            sc.loc[sc['ptype'] == 'a', 'formatted'] = sc.loc[sc['ptype'] == 'a', 'formatted'].apply(
-                lambda x: '\t\t<para>\n\t\t\t<style basestylename="Action"/>\n\t\t\t<text>'
+        def action(self, dfsc: pd.DataFrame) -> pd.DataFrame:
+            df = dfsc.copy()
+            df.loc[df['Grp'] == 'A', 'formatted'] = \
+                df.loc[df['Grp'] == 'A', 'Element'].apply(
+                    lambda x: str(x).lstrip('\s').rstrip('\s').replace(
+                        '&', '&amp;'))
+            df.loc[df[df['Grp'] == 'A', 'formatted'] = \
+                df.loc[df['ptype'] == 'a', 'Element'].apply(
+                    lambda x: '\t\t<para>\n\t\t\t<style basestylename="Action"/>\n\t\t\t<text>'
                         + str(x)
                         + '</text>\n\t\t</para>\n'
                 )
-            return sc
+            return df.copy()
     
-        def dialog(self, sc: pd.DataFrame) -> pd.DataFrame:
+        def dialog(self, dfsc: pd.DataFrame) -> pd.DataFrame:
             
-            #
-            sc.loc[sc['ptype'] == 'd', 'formatted'] = \
-                  sc.loc[sc['ptype'] == 'd', 'd_character'] \
-                + sc.loc[sc['ptype'] == 'd', 'd_character_parenthesis'].apply(lambda x: '(' + str(x) + ')' if not pd.isnull(x) else '')
+            df = dfsc.copy()
+            df.loc[df['Type'] == 'Character', 'formatted'] = \
+                  df['Type'] == 'Character', 'Element'] \
+                + df['Type'] == 'Character', 'd_character_parenthesis'].apply(lambda x: '(' + str(x) + ')' if not pd.isnull(x) else '')
             
-            sc.loc[sc['ptype'] == 'd', 'formatted'] = sc.loc[sc['ptype'] == 'd', 'formatted'].apply(
+            df.loc[df['ptype'] == 'd', 'formatted'] = df.loc[df['ptype'] == 'd', 'formatted'].apply(
                 lambda x: '\t\t<para>\n\t\t\t<style basestylename="Character"/>\n\t\t\t<text>'
                         + str(x)
                         + '</text>\n\t\t</para>\n'
                 )
                  
-            sc.loc[(sc['ptype'] == 'd') & (sc['d_dialog_parenthesis'].isna()), 'formatted'] = \
-                  sc.loc[(sc['ptype'] == 'd') & (sc['d_dialog_parenthesis'].isna()), 'formatted'] \
-                + sc.loc[(sc['ptype'] == 'd') & (sc['d_dialog_parenthesis'].isna()), 'd_dialog'].apply(
+            df.loc[(df['ptype'] == 'd') & (df['d_dialog_parenthesis'].isna()), 'formatted'] = \
+                  df.loc[(df['ptype'] == 'd') & (df['d_dialog_parenthesis'].isna()), 'formatted'] \
+                + df.loc[(df['ptype'] == 'd') & (df['d_dialog_parenthesis'].isna()), 'd_dialog'].apply(
                     lambda x: '\t\t<para>\n\t\t\t<style basestylename="Dialogue"/>\n\t\t\t<text>'
                         + str(x)
                         + '</text>\n\t\t</para>\n'
                     )
             
-            sc.loc[(sc['ptype'] == 'd') & (~sc['d_dialog_parenthesis'].isna()), 'formatted'] = \
-                  sc.loc[(sc['ptype'] == 'd') & (~sc['d_dialog_parenthesis'].isna()), 'formatted'] \
-                + sc.loc[(sc['ptype'] == 'd') & (~sc['d_dialog_parenthesis'].isna())].agg(self.format_d_dialog, axis=1)
+            df.loc[(df['ptype'] == 'd') & (~df['d_dialog_parenthesis'].isna()), 'formatted'] = \
+                  df.loc[(df['ptype'] == 'd') & (~df['d_dialog_parenthesis'].isna()), 'formatted'] \
+                + df.loc[(df['ptype'] == 'd') & (~df['d_dialog_parenthesis'].isna())].agg(self.format_d_dialog, axis=1)
                             
-            return sc
+            return df
         
         def format_d_dialog(self, x: pd.DataFrame) -> str:
             '''
@@ -612,12 +620,12 @@ class Export(object):
             ----------
             x : one row or column of pd.DataFrame depending on axis,
                 to be used with the pandas agg or apply function
-                DESCRIPTION.
+                DEdfRIPTION.
     
             Returns
             -------
             str
-                DESCRIPTION.
+                DEdfRIPTION.
     
             '''
             pattern = r'[（(].*?[）)]'

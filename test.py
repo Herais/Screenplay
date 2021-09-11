@@ -39,4 +39,5 @@ dfsc.loc[dfsc['Type'].isin(['Action', 'Dialogue']), 'zh'] = dft0['zh']
 #%%
 #dfsc.to_json('F:/Github/Screenplay/private_screenplays/df_friend_request.json')
 dfsc = pd.read_json('F:/Github/Screenplay/private_screenplays/df_friend_request.json')
+#%%
 
